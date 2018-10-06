@@ -28,12 +28,14 @@ var SectionsContainer = function (_React$Component) {
 
         _this.state = {
             activeSection: props.activeSection,
+            allowInlineScroll: props.allowInlineScroll,
             scrollingStarted: false,
             sectionScrolledPosition: 0,
             windowHeight: 0
         };
 
         _this._handleMouseWheel = _this._handleMouseWheel.bind(_this);
+        _this._isInlineScroll = _this._isInlineScroll.bind(_this);
         _this._handleAnchor = _this._handleAnchor.bind(_this);
         _this._handleResize = _this._handleResize.bind(_this);
         _this._handleArrowKeys = _this._handleArrowKeys.bind(_this);
@@ -172,13 +174,52 @@ var SectionsContainer = function (_React$Component) {
             window.removeEventListener('DOMMouseScroll', this._handleMouseWheel);
         }
     }, {
+        key: '_isInlineScroll',
+        value: function _isInlineScroll() {
+            var delta = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+
+            if (!this.state.allowInlineScroll) {
+                return false;
+            }
+            var _props = this.props,
+                className = _props.className,
+                sectionClassName = _props.sectionClassName;
+            var activeSection = this.state.activeSection;
+
+            var $container = document.getElementsByClassName(className)[0];
+            if (!$container) {
+                return;
+            }
+            var $section = $container.getElementsByClassName(sectionClassName)[activeSection];
+            var offsetHeight = $section.offsetHeight;
+            var scrollHeight = $section.scrollHeight;
+            var scrollTop = $section.scrollTop;
+
+            // without inline-scroll
+            if (scrollHeight === offsetHeight) {
+                return false;
+            }
+
+            // reach the container bottom
+            if (delta === -1 && offsetHeight + scrollTop >= scrollHeight) {
+                return false;
+            }
+
+            // reach the container top
+            if (delta === 1 && scrollTop === 0) {
+                return false;
+            }
+
+            return true;
+        }
+    }, {
         key: '_handleMouseWheel',
         value: function _handleMouseWheel(event) {
             var e = window.event || event; // old IE support
             var delta = Math.max(-1, Math.min(1, e.wheelDelta || -e.detail));
             var activeSection = this.state.activeSection - delta;
 
-            if (this.state.scrollingStarted || activeSection < 0 || this._childrenLength === activeSection) {
+            if (this.state.scrollingStarted || activeSection < 0 || this._childrenLength === activeSection || this._isInlineScroll(delta)) {
                 return false;
             }
 
@@ -220,7 +261,7 @@ var SectionsContainer = function (_React$Component) {
     }, {
         key: '_handleArrowKeys',
         value: function _handleArrowKeys(e) {
-            // if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+            // if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
             //     e.preventDefault(); // Prevent unwanted scrolling on Firefox
             // }
             var event = window.event ? window.event : e;
@@ -273,6 +314,9 @@ var SectionsContainer = function (_React$Component) {
             }, false);
 
             touchsurface.addEventListener('touchend', function (e) {
+                if (that._isInlineScroll()) {
+                    return;
+                }
                 var touchobj = e.changedTouches[0];
                 distX = touchobj.pageX - startX; // get horizontal dist traveled by finger while in contact with surface
                 distY = touchobj.pageY - startY; // get vertical dist traveled by finger while in contact with surface
